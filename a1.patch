@@ -1,0 +1,494 @@
+diff --git a/backend/src/src-licenses/src/main/java/org/eclipse/sw360/licenses/db/LicenseDatabaseHandler.java b/backend/src/src-licenses/src/main/java/org/eclipse/sw360/licenses/db/LicenseDatabaseHandler.java
+index ac126002..3d587e07 100644
+--- a/backend/src/src-licenses/src/main/java/org/eclipse/sw360/licenses/db/LicenseDatabaseHandler.java
++++ b/backend/src/src-licenses/src/main/java/org/eclipse/sw360/licenses/db/LicenseDatabaseHandler.java
+@@ -134,10 +134,10 @@ public class LicenseDatabaseHandler {
+         return license;
+     }
+ 
+-    public License getLicenseForOrganisationWithOwnModerationRequests(String id, String organisation, User user) throws SW360Exception {
++    public License getLicenseForOrganisationWithOwnModerationRequests(String id, Set<String> organisation, User user) throws SW360Exception {
+         List<ModerationRequest> moderationRequestsForDocumentId = moderator.getModerationRequestsForDocumentId(id);
+ 
+-        License license = getLicenseForOrganisation(id, organisation);
++        License license = getLicenseForOrganisation(id, String.join(", ", organisation));
+         DocumentState documentState;
+ 
+         if (moderationRequestsForDocumentId.isEmpty()) {
+diff --git a/frontend/sw360-portlet/src/main/java/org/eclipse/sw360/portal/portlets/admin/UserPortlet.java b/frontend/sw360-portlet/src/main/java/org/eclipse/sw360/portal/portlets/admin/UserPortlet.java
+index f05e14fa..ee22507c 100644
+--- a/frontend/sw360-portlet/src/main/java/org/eclipse/sw360/portal/portlets/admin/UserPortlet.java
++++ b/frontend/sw360-portlet/src/main/java/org/eclipse/sw360/portal/portlets/admin/UserPortlet.java
+@@ -210,7 +210,10 @@ public class UserPortlet extends Sw360Portlet {
+             String department = "";
+ 
+             if (organizations != null && organizations.size() > 0) {
+-                department = organizations.get(0).getName();
++            	for(Organization org:organizations) {
++            		department = department + ", " +org;
++            	}
++                //department = organizations.get(0).getName();
+             }
+ 
+             String gid = liferayUser.getScreenName();
+diff --git a/frontend/sw360-portlet/src/main/java/org/eclipse/sw360/portal/portlets/homepage/signup/Registrant.java b/frontend/sw360-portlet/src/main/java/org/eclipse/sw360/portal/portlets/homepage/signup/Registrant.java
+index d5841e98..97b5d5af 100644
+--- a/frontend/sw360-portlet/src/main/java/org/eclipse/sw360/portal/portlets/homepage/signup/Registrant.java
++++ b/frontend/sw360-portlet/src/main/java/org/eclipse/sw360/portal/portlets/homepage/signup/Registrant.java
+@@ -64,7 +64,7 @@ class Registrant extends User {
+             SessionErrors.add(request, ErrorMessages.EMAIL_NOT_VALID);
+             return false;
+         }
+-        if (isNullOrEmpty(getDepartment())) {
++        if (getDepartment().isEmpty()) {
+             SessionErrors.add(request, ErrorMessages.DEPARTMENT_CANNOT_BE_EMPTY);
+             return false;
+         }
+diff --git a/frontend/sw360-portlet/src/main/java/org/eclipse/sw360/portal/portlets/moderation/ModerationPortlet.java b/frontend/sw360-portlet/src/main/java/org/eclipse/sw360/portal/portlets/moderation/ModerationPortlet.java
+index ffdb1455..2c625131 100644
+--- a/frontend/sw360-portlet/src/main/java/org/eclipse/sw360/portal/portlets/moderation/ModerationPortlet.java
++++ b/frontend/sw360-portlet/src/main/java/org/eclipse/sw360/portal/portlets/moderation/ModerationPortlet.java
+@@ -458,7 +458,7 @@ public class ModerationPortlet extends FossologyAwarePortlet {
+ 
+         try {
+             Set<ClearingRequest> clearingRequestsSet = client.getMyClearingRequests(user);
+-            clearingRequestsSet.addAll(client.getClearingRequestsByBU(user.getDepartment()));
++            clearingRequestsSet.addAll(client.getClearingRequestsByBU(user.getDepartment().stream().findFirst().toString()));
+ 
+             Map<Boolean, List<ClearingRequest>> partitionedClearingRequests = clearingRequestsSet
+                     .stream().collect(Collectors.groupingBy(ModerationPortletUtils::isClosedClearingRequest));
+diff --git a/frontend/sw360-portlet/src/main/java/org/eclipse/sw360/portal/portlets/projects/ProjectPortlet.java b/frontend/sw360-portlet/src/main/java/org/eclipse/sw360/portal/portlets/projects/ProjectPortlet.java
+index 4303fc1a..4a4208bd 100644
+--- a/frontend/sw360-portlet/src/main/java/org/eclipse/sw360/portal/portlets/projects/ProjectPortlet.java
++++ b/frontend/sw360-portlet/src/main/java/org/eclipse/sw360/portal/portlets/projects/ProjectPortlet.java
+@@ -1504,7 +1504,7 @@ public class ProjectPortlet extends FossologyAwarePortlet {
+                 .stream()
+                 .filter(filter)
+                 .sorted(Comparator
+-                        .comparing((Attachment a) -> nullToEmpty(a.getCreatedTeam()))
++                        .comparing((Attachment a) -> nullToEmpty(String.join(", ", a.getCreatedTeam())))
+                         .thenComparing(Comparator.comparing((Attachment a) -> nullToEmpty(a.getCreatedOn())).reversed()))
+                 .collect(Collectors.toList())));
+     }
+@@ -1662,7 +1662,7 @@ public class ProjectPortlet extends FossologyAwarePortlet {
+         } else {
+             if(request.getAttribute(PROJECT) == null) {
+                 project = new Project();
+-                project.setBusinessUnit(user.getDepartment());
++                project.setBusinessUnit(user.getDepartment().stream().findFirst().toString());
+                 request.setAttribute(PROJECT, project);
+                 PortletUtils.setCustomFieldsEdit(request, user, project);
+                 setAttachmentsInRequest(request, project);
+@@ -1692,7 +1692,7 @@ public class ProjectPortlet extends FossologyAwarePortlet {
+             if (id != null) {
+                 ProjectService.Iface client = thriftClients.makeProjectClient();
+                 String emailFromRequest = LifeRayUserSession.getEmailFromRequest(request);
+-                String department = user.getDepartment();
++                String department = user.getDepartment().stream().findFirst().toString();
+ 
+                 Project newProject = PortletUtils.cloneProject(emailFromRequest, department, client.getProjectById(id, user));
+                 setAttachmentsInRequest(request, newProject);
+@@ -1705,7 +1705,7 @@ public class ProjectPortlet extends FossologyAwarePortlet {
+                 request.setAttribute(SOURCE_PROJECT_ID, id);
+             } else {
+                 Project project = new Project();
+-                project.setBusinessUnit(user.getDepartment());
++                project.setBusinessUnit(user.getDepartment().stream().findFirst().toString());
+                 setAttachmentsInRequest(request, project);
+ 
+                 request.setAttribute(PROJECT, project);
+diff --git a/frontend/sw360-portlet/src/main/java/org/eclipse/sw360/portal/tags/DisplayUserGroup.java b/frontend/sw360-portlet/src/main/java/org/eclipse/sw360/portal/tags/DisplayUserGroup.java
+index 454bc8cb..931cda53 100644
+--- a/frontend/sw360-portlet/src/main/java/org/eclipse/sw360/portal/tags/DisplayUserGroup.java
++++ b/frontend/sw360-portlet/src/main/java/org/eclipse/sw360/portal/tags/DisplayUserGroup.java
+@@ -40,7 +40,7 @@ public class DisplayUserGroup extends SimpleTagSupport {
+             user = UserCacheHolder.EMPTY_USER;
+         }
+ 
+-        getJspContext().getOut().print(escapeHtml(user.getDepartment()));
++        getJspContext().getOut().print(escapeHtml(user.getDepartment().toString()));
+     }
+ 
+ }
+diff --git a/frontend/sw360-portlet/src/main/java/org/eclipse/sw360/portal/users/SSOAutoLogin.java b/frontend/sw360-portlet/src/main/java/org/eclipse/sw360/portal/users/SSOAutoLogin.java
+index ef38fe61..f2f98831 100644
+--- a/frontend/sw360-portlet/src/main/java/org/eclipse/sw360/portal/users/SSOAutoLogin.java
++++ b/frontend/sw360-portlet/src/main/java/org/eclipse/sw360/portal/users/SSOAutoLogin.java
+@@ -30,6 +30,7 @@ import org.osgi.service.component.annotations.ConfigurationPolicy;
+ 
+ import java.util.Enumeration;
+ import java.util.Properties;
++import java.util.Set;
+ import java.util.UUID;
+ 
+ import javax.servlet.http.HttpServletRequest;
+@@ -133,7 +134,7 @@ public class SSOAutoLogin extends LoggingComponent implements AutoLogin {
+         return user;
+     }
+ 
+-    private User findOrCreateLiferayUser(HttpServletRequest request, String email, String extId, String givenName, String surname, long companyId, String organizationName) throws SystemException, PortalException {
++    private User findOrCreateLiferayUser(HttpServletRequest request, String email, String extId, String givenName, String surname, long companyId, Set<String> organizationName) throws SystemException, PortalException {
+         User user;
+         try {
+             user = UserUtils.findLiferayUser(new HttpServletRequestAdapter(request), email, extId);
+@@ -144,7 +145,7 @@ public class SSOAutoLogin extends LoggingComponent implements AutoLogin {
+     }
+ 
+     @NotNull
+-    public User createLiferayUser(HttpServletRequest request, String emailId, String extid, String givenName, String surname, long companyId, String organizationName) throws SystemException, PortalException {
++    public User createLiferayUser(HttpServletRequest request, String emailId, String extid, String givenName, String surname, long companyId, Set<String> organizationName) throws SystemException, PortalException {
+         User user;
+         String password = UUID.randomUUID().toString();
+ 
+diff --git a/frontend/sw360-portlet/src/main/java/org/eclipse/sw360/portal/users/UserCSV.java b/frontend/sw360-portlet/src/main/java/org/eclipse/sw360/portal/users/UserCSV.java
+index c6d11e1d..612218b6 100644
+--- a/frontend/sw360-portlet/src/main/java/org/eclipse/sw360/portal/users/UserCSV.java
++++ b/frontend/sw360-portlet/src/main/java/org/eclipse/sw360/portal/users/UserCSV.java
+@@ -20,6 +20,10 @@ import javax.portlet.PortletRequest;
+ import static org.eclipse.sw360.portal.users.UserUtils.getRoleConstantFromUserGroup;
+ import static org.eclipse.sw360.portal.users.UserUtils.userGroupFromString;
+ 
++import java.util.Arrays;
++import java.util.HashSet;
++import java.util.Set;
++
+ /**
+  * Created by heydenrb on 01.03.16.
+  *
+@@ -30,7 +34,7 @@ public class UserCSV {
+     private String givenname;
+     private String lastname;
+     private String email;
+-    private String department;
++    private Set<String> department;
+     private String group;
+     private String gid;
+     private boolean isMale;
+@@ -49,7 +53,7 @@ public class UserCSV {
+         return email;
+     }
+ 
+-    public String getDepartment() {
++    public Set<String> getDepartment() {
+         return department;
+     }
+ 
+@@ -69,7 +73,7 @@ public class UserCSV {
+         givenname = record.get(0);
+         lastname = record.get(1);
+         email = record.get(2);
+-        department = record.get(3);
++        department = new HashSet<String>(Arrays.asList(record.get(3).split(", ")));
+         group = record.get(4);
+         gid = record.get(5);
+         isMale = Boolean.parseBoolean(record.get(6));
+diff --git a/frontend/sw360-portlet/src/main/java/org/eclipse/sw360/portal/users/UserCacheHolder.java b/frontend/sw360-portlet/src/main/java/org/eclipse/sw360/portal/users/UserCacheHolder.java
+index 8f550442..ccce0cd8 100644
+--- a/frontend/sw360-portlet/src/main/java/org/eclipse/sw360/portal/users/UserCacheHolder.java
++++ b/frontend/sw360-portlet/src/main/java/org/eclipse/sw360/portal/users/UserCacheHolder.java
+@@ -32,7 +32,7 @@ import java.util.concurrent.ExecutionException;
+ public class UserCacheHolder {
+     private static final Logger LOGGER = LogManager.getLogger(UserCacheHolder.class);
+ 
+-    public static final User EMPTY_USER = new User().setId("").setEmail("").setExternalid("").setDepartment("").setLastname("").setGivenname("");
++    public static final User EMPTY_USER = new User().setId("").setEmail("").setExternalid("").setDepartment(null).setLastname("").setGivenname("");
+ 
+     protected static UserCacheHolder instance = null;
+ 
+diff --git a/frontend/sw360-portlet/src/main/java/org/eclipse/sw360/portal/users/UserPortletUtils.java b/frontend/sw360-portlet/src/main/java/org/eclipse/sw360/portal/users/UserPortletUtils.java
+index bc7d88f0..2bf99bef 100644
+--- a/frontend/sw360-portlet/src/main/java/org/eclipse/sw360/portal/users/UserPortletUtils.java
++++ b/frontend/sw360-portlet/src/main/java/org/eclipse/sw360/portal/users/UserPortletUtils.java
+@@ -28,7 +28,10 @@ import org.apache.logging.log4j.Logger;
+ import javax.portlet.PortletRequest;
+ import javax.servlet.http.HttpServletRequest;
+ 
++import java.util.ArrayList;
++import java.util.List;
+ import java.util.Optional;
++import java.util.Set;
+ import java.util.function.Consumer;
+ 
+ /**
+@@ -41,20 +44,25 @@ public class UserPortletUtils {
+         // Utility class with only static functions
+     }
+ 
+-    public static User addLiferayUser(HttpServletRequest request, String firstName, String lastName, String emailAddress, String organizationName, String roleName, boolean male, String externalId, String password, boolean passwordEncrypted, boolean activateImmediately) throws SystemException, PortalException {
++    public static User addLiferayUser(HttpServletRequest request, String firstName, String lastName, String emailAddress, Set<String> organizationName, String roleName, boolean male, String externalId, String password, boolean passwordEncrypted, boolean activateImmediately) throws SystemException, PortalException {
+         HttpServletRequestAdapter requestAdapter = new HttpServletRequestAdapter(request);
+         return addLiferayUser(requestAdapter, firstName, lastName, emailAddress, organizationName, roleName, male, externalId, password, passwordEncrypted, activateImmediately);
+     }
+ 
+-    public static User addLiferayUser(PortletRequest request, String firstName, String lastName, String emailAddress, String organizationName, String roleName, boolean male, String externalId, String password, boolean passwordEncrypted, boolean activateImmediately) throws SystemException, PortalException {
++    public static User addLiferayUser(PortletRequest request, String firstName, String lastName, String emailAddress, Set<String> organizationName, String roleName, boolean male, String externalId, String password, boolean passwordEncrypted, boolean activateImmediately) throws SystemException, PortalException {
+         PortletRequestAdapter requestAdapter = new PortletRequestAdapter(request);
+         return addLiferayUser(requestAdapter, firstName, lastName, emailAddress, organizationName, roleName, male, externalId, password, passwordEncrypted, activateImmediately);
+     }
+ 
+-    private static User addLiferayUser(RequestAdapter requestAdapter, String firstName, String lastName, String emailAddress, String organizationName, String roleName, boolean male, String externalId, String password, boolean passwordEncrypted, boolean activateImmediately) throws SystemException, PortalException {
++    private static User addLiferayUser(RequestAdapter requestAdapter, String firstName, String lastName, String emailAddress, Set<String> organizationName, String roleName, boolean male, String externalId, String password, boolean passwordEncrypted, boolean activateImmediately) throws SystemException, PortalException {
+         long companyId = requestAdapter.getCompanyId();
+-
+-        long organizationId = OrganizationLocalServiceUtil.getOrganizationId(companyId, organizationName);
++        List<Long> organizationId = new ArrayList<Long>();;
++        for (String org:organizationName) {
++        	organizationId.add(OrganizationLocalServiceUtil.getOrganizationId(companyId, org));
++        }
++        
++        long[] organizationIds = organizationId.stream().mapToLong(l -> l).toArray();;
++        
+         final Role role = RoleLocalServiceUtil.getRole(companyId, roleName);
+         long roleId = role.getRoleId();
+ 
+@@ -70,7 +78,7 @@ public class UserPortletUtils {
+ 
+         try {
+             long[] roleIds = roleId == 0 ? new long[]{} : new long[]{roleId};
+-            long[] organizationIds = organizationId == 0 ? new long[]{} : new long[]{organizationId};
++            //long[] organizationIds = organizationId == 0 ? new long[]{} : new long[]{organizationId};
+             long[] userGroupIds = null;
+             Optional<ServiceContext> serviceContextOpt = requestAdapter.getServiceContext();
+             final ServiceContext serviceContext;
+diff --git a/frontend/sw360-portlet/src/main/java/org/eclipse/sw360/portal/users/UserUtils.java b/frontend/sw360-portlet/src/main/java/org/eclipse/sw360/portal/users/UserUtils.java
+index a2932812..3a96a489 100644
+--- a/frontend/sw360-portlet/src/main/java/org/eclipse/sw360/portal/users/UserUtils.java
++++ b/frontend/sw360-portlet/src/main/java/org/eclipse/sw360/portal/users/UserUtils.java
+@@ -268,13 +268,15 @@ public class UserUtils {
+         return UserGroup.USER;
+     }
+ 
+-    public static String getDepartment(User user) {
+-        String department = "";
++    public static Set<String> getDepartment(User user) {
++        Set<String> department = new HashSet<>();;
+         try {
+             List<Organization> organizations = user.getOrganizations();
+             if (!organizations.isEmpty()) {
+-                Organization organization = organizations.get(0);
+-                department = organization.getName();
++            	// get list organization from Liferay organization
++            	 for (int i = 0; i < organizations.size(); i++) {
++            		 department.add(organizations.get(i).getName());
++            	 }
+             }
+         } catch (PortalException | SystemException e) {
+             log.error("Error getting department", e);
+diff --git a/libraries/lib-datahandler/src/main/java/org/eclipse/sw360/datahandler/common/SW360Utils.java b/libraries/lib-datahandler/src/main/java/org/eclipse/sw360/datahandler/common/SW360Utils.java
+index 277ed353..b72c26fa 100644
+--- a/libraries/lib-datahandler/src/main/java/org/eclipse/sw360/datahandler/common/SW360Utils.java
++++ b/libraries/lib-datahandler/src/main/java/org/eclipse/sw360/datahandler/common/SW360Utils.java
+@@ -498,13 +498,13 @@ public class SW360Utils {
+         };
+     }
+ 
+-    public static List<String> getLicenseNamesFromIds(Collection<String> ids, String department) throws TException {
++    public static List<String> getLicenseNamesFromIds(Collection<String> ids, Set<String> department) throws TException {
+         final List<License> licenseList = getLicenses(ids, department);
+ 
+         return getLicenseNamesFromLicenses(licenseList);
+     }
+ 
+-    public static List<License> getLicenses(Collection<String> ids, String department) throws TException {
++    public static List<License> getLicenses(Collection<String> ids, Set<String> department) throws TException {
+         if (ids != null && ids.size() > 0) {
+             LicenseService.Iface client = new ThriftClients().makeLicenseClient();
+             return client.getByIds(new HashSet<>(ids), department);
+diff --git a/libraries/lib-datahandler/src/main/java/org/eclipse/sw360/datahandler/permissions/ProjectPermissions.java b/libraries/lib-datahandler/src/main/java/org/eclipse/sw360/datahandler/permissions/ProjectPermissions.java
+index 517fa706..c8322819 100644
+--- a/libraries/lib-datahandler/src/main/java/org/eclipse/sw360/datahandler/permissions/ProjectPermissions.java
++++ b/libraries/lib-datahandler/src/main/java/org/eclipse/sw360/datahandler/permissions/ProjectPermissions.java
+@@ -93,7 +93,7 @@ public class ProjectPermissions extends DocumentPermissions<Project> {
+                     return userIsEquivalentToModeratorInProject(input, user.getEmail());
+                 }
+                 case BUISNESSUNIT_AND_MODERATORS: {
+-                    return isUserInBU(input, user.getDepartment()) || userIsEquivalentToModeratorInProject(input, user.getEmail()) || isUserAtLeast(CLEARING_ADMIN, user);
++                    return isUserInBU(input, user.getDepartment().stream().findFirst().toString()) || userIsEquivalentToModeratorInProject(input, user.getEmail()) || isUserAtLeast(CLEARING_ADMIN, user);
+                 }
+                 case EVERYONE:
+                     return true;
+@@ -132,7 +132,7 @@ public class ProjectPermissions extends DocumentPermissions<Project> {
+ 
+     @Override
+     protected boolean isUserInEquivalentToOwnerGroup(){
+-        return isUserInBU(document, user.getDepartment());
++        return isUserInBU(document, user.getDepartment().stream().findFirst().toString());
+     }
+ 
+     @Override
+diff --git a/libraries/lib-datahandler/src/main/thrift/attachments.thrift b/libraries/lib-datahandler/src/main/thrift/attachments.thrift
+index f79b4ddf..506a2b29 100644
+--- a/libraries/lib-datahandler/src/main/thrift/attachments.thrift
++++ b/libraries/lib-datahandler/src/main/thrift/attachments.thrift
+@@ -56,11 +56,11 @@ struct Attachment {
+     10: optional AttachmentType attachmentType,
+ 
+     11: optional string createdBy, // should be e-mail
+-    12: optional string createdTeam, // team name
++    12: optional set<string> createdTeam, // team name
+     13: optional string createdComment,
+     14: optional string createdOn,
+     15: optional string checkedBy, // should be e-mail
+-    16: optional string checkedTeam, // team name
++    16: optional set<string> checkedTeam, // team name
+     17: optional string checkedComment, // team name
+     18: optional string checkedOn, // strange to have string, but thrift?
+ 
+diff --git a/libraries/lib-datahandler/src/main/thrift/licenses.thrift b/libraries/lib-datahandler/src/main/thrift/licenses.thrift
+index 9a90d268..72946dcd 100644
+--- a/libraries/lib-datahandler/src/main/thrift/licenses.thrift
++++ b/libraries/lib-datahandler/src/main/thrift/licenses.thrift
+@@ -110,20 +110,20 @@ service LicenseService {
+      * Get a single license by providing its ID, filled with license type, risks and obligations containing obligations and whitelists
+      * filtered for the given organisation
+      **/
+-    License getByID(1:string id, 2: string organisation);
++    License getByID(1:string id, 2: set<string> organisation);
+ 
+     /**
+       * Get a single license by providing its ID, filled with license type and obligations containing obligations and whitelists
+       * filtered for the given organisation, risks are not set,
+       * user's moderation request with status pending or in progress applied
+       **/
+-    License getByIDWithOwnModerationRequests(1:string id, 2: string organisation, 3: User user);
++    License getByIDWithOwnModerationRequests(1:string id, 2: set<string> organisation, 3: User user);
+ 
+     /**
+      * get licenses for ids filled with license types, risks and obligations containing obligations
+      * whitelists filtered for organisation
+      **/
+-    list<License> getByIds(1:set<string> ids, 2: string organisation);
++    list<License> getByIds(1:set<string> ids, 2: set<string> organisation);
+ 
+     /**
+      * Add a new obligation object to database, return id
+@@ -172,13 +172,13 @@ service LicenseService {
+      * get a list of all full license documents filled with obligations, risks and license types,
+      * obligations and risks themselves are not filled
+      **/
+-    list<License> getDetailedLicenseSummaryForExport(1: string organisation);
++    list<License> getDetailedLicenseSummaryForExport(1: set<string> organisation);
+ 
+     /**
+       * get a list of full documents with ids in identifiers, filled with obligations, risks and license types,
+       * obligations and risks themselves are also filled, obligation whitelists are filtered for organisation
+       **/
+-    list<License> getDetailedLicenseSummary(1: string organisation, 2: list<string> identifiers);
++    list<License> getDetailedLicenseSummary(1: set<string> organisation, 2: list<string> identifiers);
+ 
+     /**
+      * bulk add for import of license archive, returns input license types if successful, null otherwise
+diff --git a/libraries/lib-datahandler/src/main/thrift/users.thrift b/libraries/lib-datahandler/src/main/thrift/users.thrift
+index f47bb0a1..6c82fea6 100644
+--- a/libraries/lib-datahandler/src/main/thrift/users.thrift
++++ b/libraries/lib-datahandler/src/main/thrift/users.thrift
+@@ -51,7 +51,7 @@ struct User {
+     7: optional string fullname,
+     8: optional string givenname, // firstname or given name of the person
+     9: optional string lastname, // lastname or surname of the person
+-    10: required string department,
++    10: required set<string> department,
+     11: optional bool wantsMailNotification,
+     12: optional string commentMadeDuringModerationRequest,
+     13: optional map<string, bool> notificationPreferences,
+diff --git a/libraries/lib-datahandler/src/test/java/org/eclipse/sw360/datahandler/permissions/ProjectPermissionsTest.java b/libraries/lib-datahandler/src/test/java/org/eclipse/sw360/datahandler/permissions/ProjectPermissionsTest.java
+index 57be5d48..94662222 100644
+--- a/libraries/lib-datahandler/src/test/java/org/eclipse/sw360/datahandler/permissions/ProjectPermissionsTest.java
++++ b/libraries/lib-datahandler/src/test/java/org/eclipse/sw360/datahandler/permissions/ProjectPermissionsTest.java
+@@ -25,6 +25,7 @@ import org.junit.runner.RunWith;
+ 
+ import java.util.Arrays;
+ import java.util.List;
++import java.util.Set;
+ 
+ import static org.eclipse.sw360.datahandler.thrift.users.RequestedAction.*;
+ import static org.eclipse.sw360.datahandler.thrift.users.UserGroup.*;
+@@ -78,7 +79,7 @@ public class ProjectPermissionsTest extends ScenarioTest<GivenProject, WhenCompu
+ 
+     @Test
+     @UseDataProvider("highestAllowedActionProvider")
+-    public void testHighestAllowedAction(GivenProject.ProjectRole role, String user, String requestingUser, UserGroup requestingUserGroup, String requestingUserDept, List<RequestedAction> allowedActions) throws Exception {
++    public void testHighestAllowedAction(GivenProject.ProjectRole role, String user, String requestingUser, UserGroup requestingUserGroup, Set<String> requestingUserDept, List<RequestedAction> allowedActions) throws Exception {
+         given().a_project_with_$_$(role,user).with_visibility_$_and_business_unit_$(Visibility.EVERYONE, theDept);
+         when().the_highest_allowed_action_is_computed_for_user_$_with_user_group_$_and_department_$(requestingUser, requestingUserGroup, requestingUserDept);
+         then().the_allowed_actions_should_be(allowedActions);
+@@ -110,7 +111,7 @@ public class ProjectPermissionsTest extends ScenarioTest<GivenProject, WhenCompu
+ 
+     @Test
+     @UseDataProvider("highestAllowedActionForClosedProjectProvider")
+-    public void testHighestAllowedActionForClosedProject(GivenProject.ProjectRole role, String user, String requestingUser, UserGroup requestingUserGroup, String requestingUserDept, List<RequestedAction> allowedActions) throws Exception {
++    public void testHighestAllowedActionForClosedProject(GivenProject.ProjectRole role, String user, String requestingUser, UserGroup requestingUserGroup, Set<String> requestingUserDept, List<RequestedAction> allowedActions) throws Exception {
+         given().a_closed_project_with_$_$(role,user).with_visibility_$_and_business_unit_$(Visibility.EVERYONE, theDept);
+         when().the_highest_allowed_action_is_computed_for_user_$_with_user_group_$_and_department_$(requestingUser, requestingUserGroup, requestingUserDept);
+         then().the_allowed_actions_should_be(allowedActions);
+diff --git a/libraries/lib-datahandler/src/test/java/org/eclipse/sw360/datahandler/permissions/ProjectPermissionsVisibilityTest.java b/libraries/lib-datahandler/src/test/java/org/eclipse/sw360/datahandler/permissions/ProjectPermissionsVisibilityTest.java
+index 1ca0b1a3..46430541 100644
+--- a/libraries/lib-datahandler/src/test/java/org/eclipse/sw360/datahandler/permissions/ProjectPermissionsVisibilityTest.java
++++ b/libraries/lib-datahandler/src/test/java/org/eclipse/sw360/datahandler/permissions/ProjectPermissionsVisibilityTest.java
+@@ -26,6 +26,8 @@ import static org.eclipse.sw360.datahandler.permissions.jgivens.GivenProject.Pro
+ import static org.eclipse.sw360.datahandler.thrift.Visibility.*;
+ import static org.eclipse.sw360.datahandler.thrift.users.UserGroup.*;
+ 
++import java.util.Set;
++
+ /**
+  * @author johannes.najjar@tngtech.com
+  */
+@@ -87,7 +89,7 @@ public class ProjectPermissionsVisibilityTest extends ScenarioTest<GivenProject,
+ 
+     @Test
+     @UseDataProvider("projectVisibilityProvider")
+-    public void testVisibility(Visibility visibility, String businessUnit, String department, UserGroup userGroup, boolean expectedVisibility) {
++    public void testVisibility(Visibility visibility, String businessUnit, Set<String> department, UserGroup userGroup, boolean expectedVisibility) {
+         given().a_new_project().with_visibility_$_and_business_unit_$(visibility, businessUnit);
+         when().the_visibility_is_computed_for_department_$_and_user_group_$(department, userGroup);
+         then().the_visibility_should_be(expectedVisibility);
+diff --git a/libraries/lib-datahandler/src/test/java/org/eclipse/sw360/datahandler/permissions/jgivens/WhenComputePermissions.java b/libraries/lib-datahandler/src/test/java/org/eclipse/sw360/datahandler/permissions/jgivens/WhenComputePermissions.java
+index 66f78ae9..de241edd 100644
+--- a/libraries/lib-datahandler/src/test/java/org/eclipse/sw360/datahandler/permissions/jgivens/WhenComputePermissions.java
++++ b/libraries/lib-datahandler/src/test/java/org/eclipse/sw360/datahandler/permissions/jgivens/WhenComputePermissions.java
+@@ -22,6 +22,7 @@ import com.tngtech.jgiven.annotation.ProvidedScenarioState;
+ import com.tngtech.jgiven.annotation.Quoted;
+ 
+ import java.util.List;
++import java.util.Set;
+ 
+ /**
+  * @author johannes.najjar@tngtech.com
+@@ -34,7 +35,7 @@ public class WhenComputePermissions  extends Stage<WhenComputePermissions> {
+     @ProvidedScenarioState
+     List<RequestedAction> allowedActions;
+ 
+-    public WhenComputePermissions the_highest_allowed_action_is_computed_for_user_$_with_user_group_$_and_department_$(@Quoted String userEmail, @TEnumToString UserGroup userGroup, @Quoted String userDept) {
++    public WhenComputePermissions the_highest_allowed_action_is_computed_for_user_$_with_user_group_$_and_department_$(@Quoted String userEmail, @TEnumToString UserGroup userGroup, @Quoted Set<String> userDept) {
+         final User user = new User(userEmail, userDept).setUserGroup(userGroup);
+ 
+         final DocumentPermissions<Project> projectDocumentPermissions = PermissionUtils.makePermission(project, user);
+diff --git a/libraries/lib-datahandler/src/test/java/org/eclipse/sw360/datahandler/permissions/jgivens/WhenComputeVisibility.java b/libraries/lib-datahandler/src/test/java/org/eclipse/sw360/datahandler/permissions/jgivens/WhenComputeVisibility.java
+index 6e7fa744..ceef783b 100644
+--- a/libraries/lib-datahandler/src/test/java/org/eclipse/sw360/datahandler/permissions/jgivens/WhenComputeVisibility.java
++++ b/libraries/lib-datahandler/src/test/java/org/eclipse/sw360/datahandler/permissions/jgivens/WhenComputeVisibility.java
+@@ -14,6 +14,11 @@ import com.tngtech.jgiven.Stage;
+ import com.tngtech.jgiven.annotation.ExpectedScenarioState;
+ import com.tngtech.jgiven.annotation.ProvidedScenarioState;
+ import com.tngtech.jgiven.annotation.Quoted;
++
++import java.util.Arrays;
++import java.util.HashSet;
++import java.util.Set;
++
+ import org.eclipse.sw360.datahandler.TEnumToString;
+ import org.eclipse.sw360.datahandler.permissions.ProjectPermissions;
+ import org.eclipse.sw360.datahandler.thrift.projects.Project;
+@@ -31,9 +36,9 @@ public class WhenComputeVisibility extends Stage<WhenComputeVisibility> {
+     Boolean isVisible;
+ 
+     private static String DUMMY_MAIL = "DAU@dau.com";
+-    private static String DUMMY_DEP = "definitleyTheWrongDepartment YO HO HO";
++    private static Set<String> DUMMY_DEP = new HashSet<>(Arrays.asList("definitleyTheWrongDepartment YO HO HO"));
+ 
+-    public WhenComputeVisibility the_visibility_is_computed_for_department_$_and_user_group_$(@Quoted String department, @TEnumToString UserGroup userGroup) {
++    public WhenComputeVisibility the_visibility_is_computed_for_department_$_and_user_group_$(@Quoted Set<String> department, @TEnumToString UserGroup userGroup) {
+         final User user = new User(DUMMY_MAIL, department).setUserGroup(userGroup);
+ 
+         isVisible = ProjectPermissions.isVisible(user).test(project);
