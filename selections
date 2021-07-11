@@ -1,0 +1,86 @@
+<div class="container">
+  <div class="step1">
+      <label>Type:</label>
+      <select size="1" id="type" title="" name="type">
+          <option value="">-Select Type-</option>
+          <option value="context">CONTEXT</option>
+          <option value="obligation">OBLIGATION</option>
+      </select>
+  </div>
+
+  <div class="step2">
+      <div class="context">
+         <label>Context:</label>
+           <select class="">
+              <option value="">-Select Context-</option>
+              <option value="you-must">USE CASE</option>
+              <option value="you-must-not">ABC</option>
+           </select>
+          
+        <label>Text:</label>
+        <input type="text" class=""/>
+      </div>
+      <div class="obligation">
+          <label>Language:</label>
+          <select class="">
+              <option value="">-Select Operation-</option>
+              <option value="you-must">YOU MUST</option>
+              <option value="you-must-not">YOU MUST NOT</option>
+          </select>
+          
+          <label>Action:</label>
+          <select class="">
+              <option value="">-Select Action-</option>
+              <option value="provide">Provide</option>
+              <option value="contribute">Contribute</option>
+          </select>
+          
+          <label>Object:</label>
+          <input type="text" class=""/>
+      </div>
+  </div>
+</div>
+<!-- <div class="second-level-container">
+    <div class="basic-ore-1">
+        Line of text for basic ore miner 1
+    </div>
+    <div class="basic-ore-2">
+        Line of text for basic ore miner 2
+    </div>
+    <div class="omber-miner-1">
+        Line of text for omber miner 1
+    </div>
+    <div class="omber-miner-2">
+        Line of text for omber miner 2
+    </div>    
+</div>
+
+
+$(document).ready(function() {
+    $('#type').bind('change', function() {
+        var elements = $('div.step2').children().hide(); // hide all the elements
+        var value = $(this).val();
+
+        if (value.length) { // if somethings' selected
+            elements.filter('.' + value).show(); // show the ones we want
+        }
+    }).trigger('change');
+    
+    $('#language').bind('change', function() {
+        var elements = $('div.step2').children().hide(); // hide all the elements
+        var value = $(this).val();
+
+        if (value.length) { // if somethings' selected
+            elements.filter('.' + value).show(); // show the ones we want
+        }
+    }).trigger('change');
+});
+
+
+.container{
+     overflow: hidden;
+}
+.container > div{
+     float: left;
+
+}
